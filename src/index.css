@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  background-color: #050b09;
+}
+
+/* Плавный скролл */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Красивый скроллбар для тёмной темы */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- АТМОСФЕРНЫЙ ИСЛАМСКИЙ ПАТТЕРН --- */
+.islamic-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M30 0l10 20 20 10-20 10-10 20-10-20-20-10 20-10z' fill='%2310b981' fill-opacity='0.025'/%3E%3Cpath d='M30 15l5 10 10 5-10 5-5 10-5-10-10-5 10-5z' fill='%23f59e0b' fill-opacity='0.015'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* --- КАСКАДНЫЕ И ПЛАВНЫЕ АНИМАЦИИ --- */
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-25px) scale(1.05); }
+}
+
+@keyframes floatMedium {
+  0%, 100% { transform: translateY(0) translateX(0) scale(1); }
+  50% { transform: translateY(-15px) translateX(20px) scale(1.1); }
+}
+
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInSlideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes pulseGlowEmerald {
+  0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.3), inset 0 0 0 2px rgba(16, 185, 129, 0.5); }
+  50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 0 2px rgba(16, 185, 129, 1); }
+}
+
+@keyframes pulseGlowRose {
+  0%, 100% { box-shadow: 0 0 15px rgba(244, 63, 94, 0.3), inset 0 0 0 2px rgba(244, 63, 94, 0.5); }
+  50% { box-shadow: 0 0 30px rgba(244, 63, 94, 0.6), inset 0 0 0 2px rgba(244, 63, 94, 1); }
+}
+
+/* Утилиты анимаций */
+.animate-float-slow { animation: floatSlow 10s ease-in-out infinite; }
+.animate-float-medium { animation: floatMedium 14s ease-in-out infinite; }
+.animate-fade-in-slide-up { animation: fadeInSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in-slide-down { animation: fadeInSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-scale-in { animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-shake { animation: shake 0.4s ease-in-out; }
+.animate-pulse-emerald { animation: pulseGlowEmerald 2s infinite; }
+.animate-pulse-rose { animation: pulseGlowRose 2s infinite; }
+
+/* Задержки для красивого каскадного появления */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
