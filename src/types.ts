@@ -1,4 +1,4 @@
-export type QuestionType = "single" | "negative";
+export type QuestionType = "single" | "negative" | "multiple";
 export type Difficulty = "easy" | "medium" | "hard";
 
 export type Question = {
@@ -8,7 +8,7 @@ export type Question = {
   topic: string;
   question: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: number | number[]; // Один ответ или массив ответов для множественного выбора
 };
 
 export type QuizMode = "training" | "exam" | "mistakes";

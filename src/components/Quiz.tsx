@@ -3,6 +3,7 @@ import type { Difficulty, Question, QuestionType, QuizConfig } from "../types";
 import { QUESTIONS } from "../data/questions";
 
 type QuizProps = {
+  questions?: Question[]; // Опционально - если не переданы, используем QUESTIONS по умолчанию
   config: QuizConfig;
   mistakeIds: string[];
   onFinish: (result: {
@@ -42,6 +43,10 @@ const TYPE_LABEL: Record<QuestionType, { text: string; style: string }> = {
     text: "❗ НЕ-вопрос",
     style: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 dark:border dark:border-rose-800/40",
   },
+  multiple: {
+    text: "✅ Несколько ответов",
+    style: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 dark:border dark:border-amber-800/40",
+  },
 };
 
 function HighlightNE({ text }: { text: string }) {
@@ -64,21 +69,24 @@ function HighlightNE({ text }: { text: string }) {
   );
 }
 
-export default function Quiz({ config, mistakeIds, onFinish, onExit }: QuizProps) {
+export default function Quiz({ questions: courseQuestions, config, mistakeIds, onFinish, onExit }: QuizProps) {
+  // Используем переданные вопросы или QUESTIONS по умолчанию
+  const allQuestions = courseQuestions || QUESTIONS;
+  
   const questions = useMemo(() => {
     let pool: Question[];
     if (config.mode === "mistakes") {
-      pool = QUESTIONS.filter((q) => mistakeIds.includes(q.id));
+      pool = allQuestions.filter((q) => mistakeIds.includes(q.id));
     } else {
-      pool = [...QUESTIONS];
+      pool = [...allQuestions];
     }
     return config.shuffle
       ? shuffle(pool).slice(0, config.questionsCount)
       : pool.slice(0, config.questionsCount);
-  }, [config, mistakeIds]);
+  }, [config, mistakeIds, allQuestions]);
 
   const [index, setIndex] = useState(0);
-  const [chosen, setChosen] = useState<number | null>(null);
+  const [chosen, setChosen] = useState<number | number[] | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(config.timePerQuestion);
   const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>(questions);
@@ -119,7 +127,16 @@ export default function Quiz({ config, mistakeIds, onFinish, onExit }: QuizProps
 
   function handleSelect(i: number) {
     if (revealed) return;
-    setChosen(i);
+    
+    // Если вопрос с множественными ответами
+    if (Array.isArray(current.correctAnswer)) {
+      setChosen(prev => {
+        const arr = Array.isArray(prev) ? prev : [];
+        return arr.includes(i) ? arr.filter(x => x !== i) : [...arr, i];
+      });
+    } else {
+      setChosen(i);
+    }
   }
 
   function handleReveal(forceChosen?: number) {
@@ -127,10 +144,15 @@ export default function Quiz({ config, mistakeIds, onFinish, onExit }: QuizProps
     const pick = forceChosen !== undefined ? forceChosen : chosen;
     if (pick === null) return;
     setRevealed(true);
-    const correct = pick === current.correctAnswer;
+    
+    // Поддержка множественных ответов
+    const correct = Array.isArray(current.correctAnswer) 
+      ? Array.isArray(pick) && current.correctAnswer.every(a => pick.includes(a)) && pick.length === current.correctAnswer.length
+      : pick === current.correctAnswer;
+    
     answersRef.current.push({
       question: current,
-      chosen: pick,
+      chosen: Array.isArray(pick) ? pick[0] : pick,
       correct,
       timeLeft,
     });
@@ -276,24 +298,33 @@ export default function Quiz({ config, mistakeIds, onFinish, onExit }: QuizProps
             <HighlightNE text={current.question} />
           </h2>
 
+          {/* Подсказка для множественного выбора */}
+          {Array.isArray(current.correctAnswer) && !revealed && (
+            <div className="mb-3 rounded-xl bg-amber-50/80 p-3 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+              ⚠️ Выберите все правильные варианты (несколько ответов)
+            </div>
+          )}
+
           {/* Options */}
           <div className="mt-6 space-y-3">
             {current.options.map((opt, i) => {
-              const isChosen = chosen === i;
-              const isCorrect = i === current.correctAnswer;
+              const isSelected = Array.isArray(chosen) ? chosen.includes(i) : chosen === i;
+              const isCorrect = Array.isArray(current.correctAnswer) 
+                ? current.correctAnswer.includes(i)
+                : i === current.correctAnswer;
               
               let classes =
                 "w-full text-left rounded-2xl border-2 px-4 py-3.5 transition-all duration-200 font-medium ";
               
               if (!revealed) {
-                classes += isChosen
+                classes += isSelected
                   ? "border-emerald-500 bg-emerald-50/80 text-emerald-900 shadow-md dark:bg-emerald-950/40 dark:text-emerald-100 scale-[1.01]"
                   : "border-slate-200/80 bg-white/50 text-slate-800 hover:border-slate-300 hover:bg-white hover:shadow-sm dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:border-white/20 dark:hover:bg-white/[0.06] hover:scale-[1.005]";
               } else {
                 if (isCorrect) {
                   classes +=
                     "border-emerald-500 bg-emerald-50/90 text-emerald-900 shadow-lg shadow-emerald-500/10 dark:bg-emerald-950/50 dark:text-emerald-100 scale-[1.01]";
-                } else if (isChosen && !isCorrect) {
+                } else if (isSelected && !isCorrect) {
                   classes +=
                     "border-rose-500 bg-rose-50/90 text-rose-900 shadow-lg shadow-rose-500/10 dark:bg-rose-950/50 dark:text-rose-100 scale-[0.99]";
                 } else {
@@ -314,16 +345,16 @@ export default function Quiz({ config, mistakeIds, onFinish, onExit }: QuizProps
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200 ${
                         revealed && isCorrect
                           ? "bg-emerald-500 text-white"
-                          : revealed && isChosen && !isCorrect
+                          : revealed && isSelected && !isCorrect
                           ? "bg-rose-500 text-white"
-                          : isChosen && !revealed
+                          : isSelected && !revealed
                           ? "bg-emerald-500 text-white"
                           : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300"
                       }`}
                     >
                       {revealed && isCorrect
                         ? "✓"
-                        : revealed && isChosen && !isCorrect
+                        : revealed && isSelected && !isCorrect
                         ? "✕"
                         : String.fromCharCode(65 + i)}
                     </span>

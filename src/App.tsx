@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import type { AttemptRecord, Question, QuizConfig, Stats } from "./types";
+import { COURSES } from "./data/courses";
 import Home from "./components/Home";
+import CoursePage from "./components/CoursePage";
 import Quiz from "./components/Quiz";
 import Results from "./components/Results";
 import StatsView from "./components/Stats";
 
 type Screen =
   | { name: "home" }
-  | { name: "quiz"; config: QuizConfig }
+  | { name: "course"; courseId: string }
+  | { name: "quiz"; courseId: string; config: QuizConfig }
   | {
       name: "results";
+      courseId: string;
       config: QuizConfig;
       answers: { question: Question; chosen: number; correct: boolean; timeLeft: number }[];
       duration: number;
@@ -46,11 +50,16 @@ export default function App() {
     }
   }, [darkMode]);
 
+  function getCourseById(courseId: string) {
+    return COURSES.find((c) => c.id === courseId);
+  }
+
   function handleFinish(result: {
     answered: { question: Question; chosen: number; correct: boolean; timeLeft: number }[];
     duration: number;
   }) {
-    const config = (screen as { name: "quiz"; config: QuizConfig }).config;
+    const currentScreen = screen as { name: "quiz"; courseId: string; config: QuizConfig };
+    const config = currentScreen.config;
     const correctCount = result.answered.filter((a) => a.correct).length;
     const percent =
       result.answered.length > 0
@@ -92,23 +101,77 @@ export default function App() {
 
     setScreen({
       name: "results",
+      courseId: currentScreen.courseId,
       config,
       answers: result.answered,
       duration: result.duration,
     });
   }
 
+  function handleStartQuiz(courseId: string, mode: "training" | "exam" | "mistakes") {
+    const course = getCourseById(courseId);
+    if (!course || !course.questions) return;
+
+    const questionsCount = course.questions.length;
+
+    let config: QuizConfig;
+    if (mode === "mistakes") {
+      const courseMistakes = mistakeIds.filter((id) =>
+        course.questions!.some((q) => q.id === id)
+      );
+      config = {
+        mode: "mistakes",
+        questionsCount: courseMistakes.length || 10,
+        timePerQuestion: 0,
+        shuffle: true,
+      };
+    } else if (mode === "exam") {
+      config = {
+        mode: "exam",
+        questionsCount: Math.min(20, questionsCount),
+        timePerQuestion: 45,
+        shuffle: true,
+      };
+    } else {
+      config = {
+        mode: "training",
+        questionsCount: Math.min(10, questionsCount),
+        timePerQuestion: 0,
+        shuffle: true,
+      };
+    }
+
+    setScreen({ name: "quiz", courseId, config });
+  }
+
   function renderScreen() {
-    if (screen.name === "quiz") {
+    if (screen.name === "course") {
+      const course = getCourseById(screen.courseId);
+      if (!course) return null;
       return (
-        <Quiz
-          config={screen.config}
-          mistakeIds={mistakeIds}
-          onFinish={handleFinish}
-          onExit={() => setScreen({ name: "home" })}
+        <CoursePage
+          course={course}
+          progress={0}
+          onStartQuiz={() => handleStartQuiz(screen.courseId, "training")}
+          onBack={() => setScreen({ name: "home" })}
         />
       );
     }
+
+    if (screen.name === "quiz") {
+      const course = getCourseById(screen.courseId);
+      if (!course || !course.questions) return null;
+      return (
+        <Quiz
+          questions={course.questions}
+          config={screen.config}
+          mistakeIds={mistakeIds}
+          onFinish={handleFinish}
+          onExit={() => setScreen({ name: "course", courseId: screen.courseId })}
+        />
+      );
+    }
+
     if (screen.name === "results") {
       return (
         <Results
@@ -116,7 +179,7 @@ export default function App() {
           answers={screen.answers}
           duration={screen.duration}
           onHome={() => setScreen({ name: "home" })}
-          onRetry={() => setScreen({ name: "quiz", config: screen.config })}
+          onRetry={() => setScreen({ name: "quiz", courseId: screen.courseId, config: screen.config })}
           onReviewMistakes={() => {
             const wrongIds = screen.answers
               .filter((a) => !a.correct)
@@ -124,6 +187,7 @@ export default function App() {
             if (wrongIds.length === 0) return;
             setScreen({
               name: "quiz",
+              courseId: screen.courseId,
               config: {
                 mode: "mistakes",
                 questionsCount: wrongIds.length,
@@ -135,6 +199,7 @@ export default function App() {
         />
       );
     }
+
     if (screen.name === "stats") {
       return (
         <StatsView
@@ -154,13 +219,14 @@ export default function App() {
         />
       );
     }
+
     return (
       <Home
         stats={stats}
         mistakeIds={mistakeIds}
         darkMode={darkMode}
         onToggleDark={() => setDarkMode((d) => !d)}
-        onStart={(config) => setScreen({ name: "quiz", config })}
+        onSelectCourse={(courseId) => setScreen({ name: "course", courseId })}
         onShowStats={() => setScreen({ name: "stats" })}
       />
     );
@@ -168,17 +234,12 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/50 text-slate-900 transition-colors duration-500 dark:from-[#050b09] dark:via-[#09130f] dark:to-[#050b09] dark:text-slate-100">
-      {/* Исламский полупрозрачный паттерн */}
       <div className="islamic-pattern pointer-events-none absolute inset-0" />
-
-      {/* Атмосферные фоновые сферы (Ambient Lights) */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-float-slow absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-emerald-400/15 blur-[120px] dark:bg-emerald-600/10" />
         <div className="animate-float-medium absolute -right-32 top-1/4 h-[600px] w-[600px] rounded-full bg-teal-400/15 blur-[140px] dark:bg-teal-600/10" />
         <div className="animate-float-slow absolute bottom-[-10%] left-1/4 h-[450px] w-[450px] rounded-full bg-amber-400/10 blur-[100px] dark:bg-amber-600/5" />
       </div>
-
-      {/* Обертка с плавной анимацией при смене экранов */}
       <div key={screenKey} className="animate-fade-in-slide-up relative z-10">
         {renderScreen()}
       </div>

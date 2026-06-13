@@ -204,7 +204,9 @@ export default function Results({
                       <span>
                         Верно:{" "}
                         <span className="font-medium">
-                          {a.question.options[a.question.correctAnswer]}
+                          {Array.isArray(a.question.correctAnswer)
+                            ? a.question.correctAnswer.map(i => a.question.options[i]).join(", ")
+                            : a.question.options[a.question.correctAnswer]}
                         </span>
                       </span>
                     </div>
